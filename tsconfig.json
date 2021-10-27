@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "outDir": "built",
+
+    "baseUrl": ".",
+    "target": "ES2017",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "lib": ["ESNext", "ESNext.AsyncIterable", "DOM",],
+    "esModuleInterop": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowJs": false,
+    "sourceMap": true,
+    "strict": true,
+
+    "paths": {
+      "~/*": ["./*"],
+      "@/*": ["./*"]
+    },
+    "types": ["@types/node", "@types/jest"]
+  },
+  "include": ["./src/**/*.ts", "src/jest.extend.asyncThrow.ts"],
+  "exclude": ["node_modules", "off", "*.off", "built", ".yarn"],
+  
+  "watchOptions": {
+    "watchFile": "useFsEvents",
+    "watchDirectory": "useFsEvents",
+    "fallbackPolling": "dynamicPriority"
+  }
+}
+
