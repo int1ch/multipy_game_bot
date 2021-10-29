@@ -24,16 +24,18 @@ const numKeyboard = new Keyboard()
   .text("0");
 */
 
+interface GameState {
+  questionN: number;
+  questions: Question[];
+  score: number;
+  try: 0;
+  startTs: number;
+  startQuestionTs: number;
+}
 interface SessionData {
   gameType?: string;
   gameTime?: number;
-  gameState?: {
-    questionN: number;
-    questions: Question[];
-    score: number;
-    try: 0;
-    start: number;
-  };
+  gameState?: GameState;
 }
 
 type GameContext = Context & SessionFlavor<SessionData>;
@@ -47,8 +49,9 @@ router.route(SIMPLE_GAME, async (ctx, next) => {
 
   const text = message.text;
   console.log("Simple game get message:", text);
-  if (text) {
-    const shifter = new GameStateShifter(ctx);
+  const gameState = ctx.session.gameState;
+  if (gameState && text) {
+    const shifter = new GameStateShifter(gameState);
     const response = shifter.checkAnswer(text);
     if (response) {
       return await botResponse(ctx, response);
@@ -65,25 +68,21 @@ export async function startGame(ctx: GameContext) {
   const selectGame = 1; //Math.random();
   const game = selectGame > 0.5 ? generateSimpleGame() : generateVariantGame();
 
-  const question = game.questions[0];
+  const shifter = GameStateShifter.newGame(game);
+  const question = shifter.startGame();
+
   if (!question) {
     console.log("Generation failed", game);
     return await botResponse(ctx, { text: "internal error" });
   }
   console.log("Ask first question", question);
-  ctx.session.gameState = {
-    questionN: 0,
-    score: 0,
-    try: 0,
-    questions: game.questions,
-    start: new Date().getTime(),
-  };
 
+  ctx.session.gameState = shifter.getState();
   ctx.session.gameType = SIMPLE_GAME;
   return await botResponse(ctx, question);
 }
 
-async function botResponse(ctx: GameContext, response: ShifterTextResponse) {
+async function botResponse(ctx: GameContext, response: ShifterResponse) {
   const text = response.text;
   let reply_markup: ReplyKeyboardMarkup | ReplyKeyboardRemove | undefined;
   if (response.variants) {
@@ -126,29 +125,50 @@ async function botResponse(ctx: GameContext, response: ShifterTextResponse) {
   но как рализовать отправку через timeout?  
 
 */
-interface ShifterTextResponse {
+interface QuestionStat {
+  text: string;
+  timeMs: number;
+}
+interface GameStat {
+  timeMs: number;
+  score: number;
+}
+interface ShifterResponse {
   text: string;
   variants?: string[];
   endGame?: boolean;
   result?: any; //FIXME
+  stats?: {
+    question?: QuestionStat;
+    game?: GameStat;
+  };
+}
+interface Game {
+  questions: Question[];
 }
 class GameStateShifter {
   protected MAX_TRYS = 2;
-  protected ctx: GameContext;
-  constructor(ctx: GameContext) {
-    this.ctx = ctx;
+  protected state: GameState;
+  constructor(ctx: GameState) {
+    this.state = ctx;
+  }
+  public getState() {
+    return this.state;
   }
 
-  public checkAnswer(text: string): ShifterTextResponse {
-    const gameState = this.ctx.session.gameState;
-    if (!gameState) {
-      console.log(
-        "no game state: internal error",
-        this.ctx.session,
-        this.ctx.message
-      );
-      return { text: "internal error %(" };
-    }
+  static newGame(game: Game) {
+    const state: GameState = {
+      questions: game.questions,
+      questionN: -1,
+      score: 0,
+      try: 0,
+      startTs: new Date().getTime(),
+      startQuestionTs: 0,
+    };
+    return new GameStateShifter(state);
+  }
+  public checkAnswer(text: string): ShifterResponse {
+    const gameState = this.state;
     const question = gameState.questions[gameState.questionN];
     if (text == question.answer) {
       gameState.score += question.score || 1;
@@ -156,13 +176,14 @@ class GameStateShifter {
     }
     return this.reQuestion();
   }
-  public finishGame(): ShifterTextResponse {
+  public finishGame(): ShifterResponse {
     const endTime = new Date().getTime();
-    const startTime = this.ctx.session.gameState?.start;
+    const gameState = this.state;
+    const startTime = gameState.startTs;
     let strTaken = "";
     let taken = 0;
     if (startTime) {
-      let taken = endTime - startTime;
+      taken = endTime - startTime;
       strTaken = (taken / 1000).toFixed(1);
       strTaken = `\nВаш Результат ${strTaken} секунд`;
     }
@@ -172,35 +193,64 @@ class GameStateShifter {
       endGame: true,
       result: {
         ms: taken,
-        score: this.ctx.session.gameState?.score,
+        score: gameState.score,
+      },
+      stats: {
+        game: {
+          timeMs: taken,
+          score: gameState.score,
+        },
       },
     };
   }
-  public nextQuestion(): ShifterTextResponse {
-    const gameState = this.ctx.session.gameState;
-    if (!gameState) {
-      return {
-        text: "game stopped",
-      };
-    }
-    const nextN = gameState.questionN + 1;
-    if (nextN >= gameState.questions.length) {
-      return this.finishGame();
-    }
-    const nextQuestion = gameState.questions[nextN];
+  public startGame(): ShifterResponse {
+    const gameState = this.state;
+    gameState.questionN = -1;
+    return this.nextQuestion();
+  }
+  public askQuestion(): ShifterResponse {
+    const gameState = this.state;
+    const nextQuestion = gameState.questions[gameState.questionN];
     //alter state
-    gameState.questionN = nextN;
-    gameState.try = 0;
     return {
       text: nextQuestion.text,
       variants: nextQuestion.variants,
     };
   }
-  public reQuestion(): ShifterTextResponse {
-    const gameState = this.ctx.session.gameState;
-    if (!gameState) {
-      throw new Error("Game stopped");
+  static addQuestionStat(
+    response: ShifterResponse,
+    stats: undefined | QuestionStat
+  ) {
+    if (stats) {
+      response.stats ||= {};
+      response.stats!.question = stats;
     }
+    return response;
+  }
+  public nextQuestion(): ShifterResponse {
+    const gameState = this.state;
+    const thisN = gameState.questionN;
+    const nextN = gameState.questionN + 1;
+    let stats: QuestionStat | undefined;
+    if (thisN >= 0) {
+      const elapsed = new Date().getTime() - gameState.startQuestionTs;
+      stats = {
+        text: gameState.questions[gameState.questionN].text,
+        timeMs: elapsed,
+      };
+    }
+
+    if (nextN >= gameState.questions.length) {
+      return GameStateShifter.addQuestionStat(this.finishGame(), stats);
+    }
+    gameState.questionN = nextN;
+    gameState.try = 0;
+    gameState.startQuestionTs = new Date().getTime();
+
+    return GameStateShifter.addQuestionStat(this.askQuestion(), stats);
+  }
+  public reQuestion(): ShifterResponse {
+    const gameState = this.state;
     const question = gameState.questions[gameState.questionN];
     const answer = question.answer;
     //try
