@@ -1,4 +1,5 @@
-import { normalizedAB, Question } from "./GamesCommon";
+import { normalizedAB } from "./GamesCommon";
+import { Question } from "./GameStateShifter";
 
 export function generateSimpleGame(
   questionsCount: number = 9,
@@ -36,6 +37,7 @@ function randomInt(from: number, to: number) {
 }
 
 const points: Record<number, number[]> = {
+  0: [6, 8, 9, 12],
   1: [12, 15, 16, 18],
   2: [21, 24, 27, 28],
   3: [32, 36, 35],
@@ -45,7 +47,7 @@ const points: Record<number, number[]> = {
   7: [72, 64, 56, 81],
   8: [72, 64, 56, 81],
 };
-function generateVariants(answer: number): string[] | undefined {
+export function generateVariants(answer: number): string[] | undefined {
   //
   const dec = Math.floor(answer / 10);
   if (!points[dec]) {

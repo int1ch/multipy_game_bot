@@ -1,0 +1,148 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`3 question game ask q2 1`] = `
+Object {
+  "failedQuestions": Object {},
+  "questionN": 1,
+  "questions": Array [
+    Object {
+      "answer": "a",
+      "text": "a",
+      "variants": Array [
+        "a",
+        "b",
+      ],
+    },
+    Object {
+      "answer": "b",
+      "text": "b",
+      "variants": Array [
+        "a",
+        "b",
+      ],
+    },
+    Object {
+      "answer": "c",
+      "text": "c",
+    },
+  ],
+  "score": 1,
+  "startQuestionTs": 1234567890,
+  "startTs": 1234567890,
+  "try": 0,
+}
+`;
+
+exports[`3 question game ask q2 2`] = `
+Object {
+  "questionStat": Object {
+    "failed": false,
+    "text": "a",
+    "timeMs": 1,
+  },
+  "text": "b",
+  "variants": Array [
+    "a",
+    "b",
+  ],
+}
+`;
+
+exports[`3 question game ask q3 1`] = `
+Object {
+  "failedQuestions": Object {},
+  "questionN": 2,
+  "questions": Array [
+    Object {
+      "answer": "a",
+      "text": "a",
+      "variants": Array [
+        "a",
+        "b",
+      ],
+    },
+    Object {
+      "answer": "b",
+      "text": "b",
+      "variants": Array [
+        "a",
+        "b",
+      ],
+    },
+    Object {
+      "answer": "c",
+      "text": "c",
+    },
+  ],
+  "score": 2,
+  "startQuestionTs": 1234567890,
+  "startTs": 1234567890,
+  "try": 0,
+}
+`;
+
+exports[`3 question game finish 1`] = `
+Object {
+  "failedQuestions": Object {},
+  "questionN": 2,
+  "questions": Array [
+    Object {
+      "answer": "a",
+      "text": "a",
+      "variants": Array [
+        "a",
+        "b",
+      ],
+    },
+    Object {
+      "answer": "b",
+      "text": "b",
+      "variants": Array [
+        "a",
+        "b",
+      ],
+    },
+    Object {
+      "answer": "c",
+      "text": "c",
+    },
+  ],
+  "score": 3,
+  "startQuestionTs": 1234567890,
+  "startTs": 1234567890,
+  "try": 0,
+}
+`;
+
+exports[`3 question game start 1`] = `
+Object {
+  "failedQuestions": Object {},
+  "questionN": 0,
+  "questions": Array [
+    Object {
+      "answer": "a",
+      "text": "a",
+      "variants": Array [
+        "a",
+        "b",
+      ],
+    },
+    Object {
+      "answer": "b",
+      "text": "b",
+      "variants": Array [
+        "a",
+        "b",
+      ],
+    },
+    Object {
+      "answer": "c",
+      "text": "c",
+    },
+  ],
+  "score": 0,
+  "startQuestionTs": 1234567890,
+  "startTs": 1234567890,
+  "try": 0,
+}
+`;

@@ -14,7 +14,8 @@ module.exports = {
       max: 10,
     },
     migrations: {
-      tableName: "knex_migrations",
+      extension: "ts",
+      tableName: "knex_migrations_mbot",
     },
   },
 
@@ -31,7 +32,8 @@ module.exports = {
       max: 10,
     },
     migrations: {
-      tableName: "knex_migrations",
+      extension: "ts",
+      tableName: "knex_migrations_mbot",
     },
   },
 
@@ -47,7 +49,7 @@ module.exports = {
       max: 10,
     },
     migrations: {
-      tableName: "knex_migrations",
+      tableName: "knex_migrations_mbot",
     },
   },
 
@@ -63,7 +65,7 @@ module.exports = {
       max: 10,
     },
     migrations: {
-      tableName: "knex_migrations",
+      tableName: "knex_migrations_mbot",
     },
   },
 };

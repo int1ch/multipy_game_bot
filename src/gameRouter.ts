@@ -1,10 +1,28 @@
 import { Context, SessionFlavor, session, Keyboard } from "grammy";
 import { Router } from "@grammyjs/router";
-import { generateSimpleGame } from "./SimpleMultipyGame";
+import { generateSimpleGame } from "./SimpleMultiplyGame";
 
-import { ReplyKeyboardMarkup, ReplyKeyboardRemove } from "@grammyjs/types";
-import { Question } from "./GamesCommon";
+import {
+  ParseMode,
+  ReplyKeyboardMarkup,
+  ReplyKeyboardRemove,
+} from "@grammyjs/types";
+
 import { generateVariantGame } from "./VariantMultiplyGame";
+import {
+  GameStat,
+  PlainGameState,
+  GameStateShifter,
+  QuestionStat,
+  ShifterResponse,
+} from "./GameStateShifter";
+
+import { GameStats } from "./db/GameStats";
+import knex from "./knexConnection";
+import { GameTextGenerator } from "./GameTextGenerator";
+import { stringify } from "querystring";
+import { GameProcessor, GameResponse } from "./GameProcessor";
+import { GameState } from "./GameState";
 
 export const SIMPLE_GAME = "simple";
 
@@ -24,92 +42,142 @@ const numKeyboard = new Keyboard()
   .text("0");
 */
 
-interface GameState {
-  questionN: number;
-  questions: Question[];
-  score: number;
-  try: 0;
-  startTs: number;
-  startQuestionTs: number;
-}
 interface SessionData {
   gameType?: string;
   gameTime?: number;
-  gameState?: GameState;
+  gameState?: PlainGameState;
 }
 
-type GameContext = Context & SessionFlavor<SessionData>;
+export type GameContext = Context & SessionFlavor<SessionData>;
 
 export const router = new Router<GameContext>((ctx) => ctx.session.gameType);
-router.route(SIMPLE_GAME, async (ctx, next) => {
-  const message = ctx.msg;
-  if (!message) {
-    return await next();
-  }
+const pgStats = new GameStats({ knex });
 
-  const text = message.text;
-  console.log("Simple game get message:", text);
-  const gameState = ctx.session.gameState;
-  if (gameState && text) {
-    const shifter = new GameStateShifter(gameState);
-    const response = shifter.checkAnswer(text);
-    if (response) {
-      return await botResponse(ctx, response);
-    } else {
-      await next();
+router.route(SIMPLE_GAME, async (ctx, next) => {
+  try {
+    const message = ctx.msg;
+    if (!message) {
+      return await next();
     }
-  } else {
-    console.log("Unexpeted message:", ctx.msg);
+
+    const player = await getOrCreatePlayerByCtx(ctx, pgStats);
+    const playerId = player.playerId;
+
+    const text = message.text;
+    console.log("Simple game get message:", text);
+    const gameState = ctx.session.gameState;
+    if (gameState && text) {
+      const state = new GameState(gameState);
+      const game = new GameProcessor(state, playerId);
+      const response = await game.checkAnswer(text);
+      console.log("GET RESPONSE", response);
+      if (response) {
+        return await processGameResponse(ctx, response, playerId);
+      } else {
+        await next();
+      }
+    } else {
+      console.log("Unexpected message:", ctx.msg);
+    }
+  } catch (e) {
+    console.error("I2", e);
   }
 });
+
+async function getOrCreatePlayerByCtx(ctx: Context, stats: GameStats) {
+  const from = ctx.message?.from;
+  if (!from) {
+    throw new Error("Context with message.from expected");
+  }
+  const telegramId = from.id;
+  let player = await pgStats.getPlayerByTelegramId(telegramId);
+  if (!player) {
+    const login = from.username;
+    const name = from.first_name;
+    player = await pgStats.savePlayer(telegramId, name, login);
+  }
+  return player;
+}
 
 export async function startGame(ctx: GameContext) {
   await ctx.reply("Generating Game");
   const selectGame = 1; //Math.random();
   const game = selectGame > 0.5 ? generateSimpleGame() : generateVariantGame();
+  const player = await getOrCreatePlayerByCtx(ctx, pgStats);
 
-  const shifter = GameStateShifter.newGame(game);
-  const question = shifter.startGame();
+  const processor = GameProcessor.newGame(game, player.playerId);
+  //new GameProcessor(ctx.session.gameState!, player.playerId);
+  const response = await processor.startGame();
 
-  if (!question) {
-    console.log("Generation failed", game);
-    return await botResponse(ctx, { text: "internal error" });
-  }
-  console.log("Ask first question", question);
-
-  ctx.session.gameState = shifter.getState();
   ctx.session.gameType = SIMPLE_GAME;
-  return await botResponse(ctx, question);
+  ctx.session.gameState = processor.stateRef();
+
+  return await processGameResponse(ctx, response, player.playerId);
 }
 
-async function botResponse(ctx: GameContext, response: ShifterResponse) {
-  const text = response.text;
-  let reply_markup: ReplyKeyboardMarkup | ReplyKeyboardRemove | undefined;
-  if (response.variants) {
-    const keyboard = new Keyboard();
-    for (const variant of response.variants) {
-      keyboard.text(variant);
-    }
-    reply_markup = {
-      one_time_keyboard: true,
-      keyboard: keyboard.build(),
-    };
-  } else {
-    //reply_markup = {
-    //  keyboard: generateKeyboard(),
-    //};
+async function processGameResponse(
+  ctx: GameContext,
+  response: GameResponse,
+  playerId: number
+) {
+  if (response.text) {
+    await telegramReply(ctx, response);
   }
-  if (response.endGame) {
-    reply_markup = { remove_keyboard: true };
 
+  if (response.endGame) {
     ctx.session.gameState = undefined;
     ctx.session.gameType = undefined;
   }
+  const gameType = "FIXME";
+  const gStat = response.gameStat;
+  if (gStat) {
+    await pgStats.saveGameResult(playerId, gameType, gStat.timeMs, gStat.score);
+  }
+
+  const qStat = response.questionStat;
+  if (qStat) {
+    try {
+      await pgStats.saveGameQuestionResult(
+        playerId,
+        qStat.text,
+        qStat.timeMs
+        //qStat.failed,
+      );
+    } catch (e: any) {
+      console.log("L2 EXPECT PROBLEMS HERE", e);
+    }
+  }
+}
+//output
+async function telegramReply(ctx: GameContext, response: GameResponse) {
+  //const ctx = this.ctx;
+  const text = response.text;
+  let reply_markup: ReplyKeyboardMarkup | ReplyKeyboardRemove | undefined;
+  let parse_mode: ParseMode | undefined;
+  if (response.variants) {
+    reply_markup = {
+      one_time_keyboard: true,
+      keyboard: telegramReplyKeyboard(response.variants),
+    };
+  }
+  if (response.parse_mode) {
+    parse_mode = response.parse_mode;
+  }
+  if (response.removeKeyboard) {
+    reply_markup = { remove_keyboard: true };
+  }
   return await ctx.reply(text, {
     reply_markup,
+    parse_mode,
   });
 }
-
+function telegramReplyKeyboard(variants: string[]) {
+  const keyboard = new Keyboard();
+  for (const variant of variants) {
+    keyboard.text(variant);
+  }
+  return keyboard.build();
+}
 /*
   
   gameState: {
@@ -125,149 +193,3 @@ async function botResponse(ctx: GameContext, response: ShifterResponse) {
   но как рализовать отправку через timeout?  
 
 */
-interface QuestionStat {
-  text: string;
-  timeMs: number;
-}
-interface GameStat {
-  timeMs: number;
-  score: number;
-}
-interface ShifterResponse {
-  text: string;
-  variants?: string[];
-  endGame?: boolean;
-  result?: any; //FIXME
-  stats?: {
-    question?: QuestionStat;
-    game?: GameStat;
-  };
-}
-interface Game {
-  questions: Question[];
-}
-class GameStateShifter {
-  protected MAX_TRYS = 2;
-  protected state: GameState;
-  constructor(ctx: GameState) {
-    this.state = ctx;
-  }
-  public getState() {
-    return this.state;
-  }
-
-  static newGame(game: Game) {
-    const state: GameState = {
-      questions: game.questions,
-      questionN: -1,
-      score: 0,
-      try: 0,
-      startTs: new Date().getTime(),
-      startQuestionTs: 0,
-    };
-    return new GameStateShifter(state);
-  }
-  public checkAnswer(text: string): ShifterResponse {
-    const gameState = this.state;
-    const question = gameState.questions[gameState.questionN];
-    if (text == question.answer) {
-      gameState.score += question.score || 1;
-      return this.nextQuestion();
-    }
-    return this.reQuestion();
-  }
-  public finishGame(): ShifterResponse {
-    const endTime = new Date().getTime();
-    const gameState = this.state;
-    const startTime = gameState.startTs;
-    let strTaken = "";
-    let taken = 0;
-    if (startTime) {
-      taken = endTime - startTime;
-      strTaken = (taken / 1000).toFixed(1);
-      strTaken = `\nВаш Результат ${strTaken} секунд`;
-    }
-
-    return {
-      text: "Поздравляю игра закончена!" + strTaken,
-      endGame: true,
-      result: {
-        ms: taken,
-        score: gameState.score,
-      },
-      stats: {
-        game: {
-          timeMs: taken,
-          score: gameState.score,
-        },
-      },
-    };
-  }
-  public startGame(): ShifterResponse {
-    const gameState = this.state;
-    gameState.questionN = -1;
-    return this.nextQuestion();
-  }
-  public askQuestion(): ShifterResponse {
-    const gameState = this.state;
-    const nextQuestion = gameState.questions[gameState.questionN];
-    //alter state
-    return {
-      text: nextQuestion.text,
-      variants: nextQuestion.variants,
-    };
-  }
-  static addQuestionStat(
-    response: ShifterResponse,
-    stats: undefined | QuestionStat
-  ) {
-    if (stats) {
-      response.stats ||= {};
-      response.stats!.question = stats;
-    }
-    return response;
-  }
-  public nextQuestion(): ShifterResponse {
-    const gameState = this.state;
-    const thisN = gameState.questionN;
-    const nextN = gameState.questionN + 1;
-    let stats: QuestionStat | undefined;
-    if (thisN >= 0) {
-      const elapsed = new Date().getTime() - gameState.startQuestionTs;
-      stats = {
-        text: gameState.questions[gameState.questionN].text,
-        timeMs: elapsed,
-      };
-    }
-
-    if (nextN >= gameState.questions.length) {
-      return GameStateShifter.addQuestionStat(this.finishGame(), stats);
-    }
-    gameState.questionN = nextN;
-    gameState.try = 0;
-    gameState.startQuestionTs = new Date().getTime();
-
-    return GameStateShifter.addQuestionStat(this.askQuestion(), stats);
-  }
-  public reQuestion(): ShifterResponse {
-    const gameState = this.state;
-    const question = gameState.questions[gameState.questionN];
-    const answer = question.answer;
-    //try
-    if (gameState.try > this.MAX_TRYS) {
-      // FAIL
-      const response = this.nextQuestion();
-      response.text =
-        `Снова не угадали, правильный ответ ${answer}\n` +
-        "давайте слудующий вопрос\n" +
-        response.text;
-
-      return response;
-    }
-    // TRY AGAIN
-    gameState.try++;
-    return {
-      text: `Нет, попоробуйте еще раз ${gameState.try}`,
-    };
-  }
-}
