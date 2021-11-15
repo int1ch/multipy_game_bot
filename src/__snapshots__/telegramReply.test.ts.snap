@@ -1,0 +1,32 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`telegram  text replay variants 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "HelloWorld",
+      Object {
+        "reply_markup": Object {
+          "keyboard": Array [
+            Array [
+              Object {
+                "text": "1",
+              },
+              Object {
+                "text": "A",
+              },
+            ],
+          ],
+          "one_time_keyboard": true,
+        },
+      },
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": Promise {},
+    },
+  ],
+}
+`;
