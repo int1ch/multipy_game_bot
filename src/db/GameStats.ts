@@ -1,6 +1,7 @@
 import { Knex } from "knex";
 import { stringify } from "querystring";
 import { CentralStation, isCentralStation } from "../CentralStation";
+import logger from "./logger";
 
 export interface PgMGameStats {
   playerId: number;
@@ -68,7 +69,7 @@ export class GameStats {
         time: timeMs,
       });
     } catch (e: any) {
-      console.error("INTERCEPTOR:", e);
+      logger.error({ error: e }, "SQL INTERCEPTOR");
       throw new Error(e);
     }
   }
@@ -197,7 +198,7 @@ limit 5
       .orderByRaw("score desc, min_time_ms")
       .limit(5)
       .debug(true);
-    console.log("Raw rating: ", result);
+    logger.info("Raw rating: %o", result);
     return result as {
       game: string;
       playerId: number;
@@ -210,7 +211,7 @@ limit 5
   }
   public async getPayersInfo(players_ids: number[]) {
     const knex = this.knex;
-    console.log("fetch players info for", players_ids);
+    logger.info("fetch players info for %o", players_ids);
     const result = await knex("mgame_players")
       .select(
         "player_id",

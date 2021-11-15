@@ -1,4 +1,5 @@
 import { GameStats } from "./db/GameStats";
+import logger from "./logger";
 
 export interface TextResponse {
   text: string;
@@ -82,7 +83,7 @@ export class GameTextGenerator {
           break; //only one record matter
         }
       } catch (e) {
-        console.info(e);
+        logger.info({ error: e }, "Record Error");
       }
     }
 

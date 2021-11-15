@@ -72,7 +72,7 @@ export class GameProcessor {
       ...response,
       questionStat,
     };
-    console.log("RESPONSE: ", response, result);
+
     return result;
   }
   public async moveToNextQuestion(options?: {

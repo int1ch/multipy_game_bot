@@ -1,28 +1,18 @@
-import { Context, SessionFlavor, session, Keyboard } from "grammy";
+import { Context, SessionFlavor } from "grammy";
 import { Router } from "@grammyjs/router";
 import { generateSimpleGame } from "./SimpleMultiplyGame";
 
-import {
-  ParseMode,
-  ReplyKeyboardMarkup,
-  ReplyKeyboardRemove,
-} from "@grammyjs/types";
-
 import { generateVariantGame } from "./VariantMultiplyGame";
-import {
-  GameStat,
-  PlainGameState,
-  GameStateShifter,
-  QuestionStat,
-  ShifterResponse,
-} from "./GameStateShifter";
+import { PlainGameState } from "./GameStateShifter";
 
 import { GameStats } from "./db/GameStats";
 import knex from "./knexConnection";
-import { GameTextGenerator } from "./GameTextGenerator";
-import { stringify } from "querystring";
+
 import { GameProcessor, GameResponse } from "./GameProcessor";
 import { GameState } from "./GameState";
+
+import logger from "./logger";
+import { telegramReply } from "./telegramReply";
 
 export const SIMPLE_GAME = "simple";
 
@@ -64,23 +54,23 @@ router.route(SIMPLE_GAME, async (ctx, next) => {
     const playerId = player.playerId;
 
     const text = message.text;
-    console.log("Simple game get message:", text);
+    logger.info("Simple game get message: %s", text);
     const gameState = ctx.session.gameState;
     if (gameState && text) {
       const state = new GameState(gameState);
       const game = new GameProcessor(state, playerId);
       const response = await game.checkAnswer(text);
-      console.log("GET RESPONSE", response);
+
       if (response) {
         return await processGameResponse(ctx, response, playerId);
       } else {
         await next();
       }
     } else {
-      console.log("Unexpected message:", ctx.msg);
+      logger.warn("Unexpected message: %s", ctx.msg);
     }
   } catch (e) {
-    console.error("I2", e);
+    logger.error({ error: e }, "L2 intercepro");
   }
 });
 
@@ -144,40 +134,11 @@ async function processGameResponse(
         //qStat.failed,
       );
     } catch (e: any) {
-      console.log("L2 EXPECT PROBLEMS HERE", e);
+      logger.warn({ error: e }, "L2 INTERCEPTOR EXPECT PROBLEMS HERE");
     }
   }
 }
-//output
-async function telegramReply(ctx: GameContext, response: GameResponse) {
-  //const ctx = this.ctx;
-  const text = response.text;
-  let reply_markup: ReplyKeyboardMarkup | ReplyKeyboardRemove | undefined;
-  let parse_mode: ParseMode | undefined;
-  if (response.variants) {
-    reply_markup = {
-      one_time_keyboard: true,
-      keyboard: telegramReplyKeyboard(response.variants),
-    };
-  }
-  if (response.parse_mode) {
-    parse_mode = response.parse_mode;
-  }
-  if (response.removeKeyboard) {
-    reply_markup = { remove_keyboard: true };
-  }
-  return await ctx.reply(text, {
-    reply_markup,
-    parse_mode,
-  });
-}
-function telegramReplyKeyboard(variants: string[]) {
-  const keyboard = new Keyboard();
-  for (const variant of variants) {
-    keyboard.text(variant);
-  }
-  return keyboard.build();
-}
+
 /*
   
   gameState: {

@@ -2,6 +2,7 @@ import { KnexConnector } from "./knexConnector";
 import { Knex } from "knex";
 
 import * as config from "./config";
+import logger from "./logger";
 
 export const connector = new KnexConnector<Knex, Knex.Config>(
   {
@@ -12,6 +13,20 @@ export const connector = new KnexConnector<Knex, Knex.Config>(
       user: config.PG_USERNAME,
       password: config.PG_PASSWORD,
       database: config.PG_DATABASE,
+    },
+    log: {
+      warn(message) {
+        logger.warn(message);
+      },
+      error(message) {
+        logger.error(message);
+      },
+      deprecate(message) {
+        logger.warn("deprecate %s", message);
+      },
+      debug(message) {
+        logger.debug(message);
+      },
     },
   },
   {

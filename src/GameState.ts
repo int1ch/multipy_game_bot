@@ -4,6 +4,8 @@ import {
   Question,
 } from "./GameStateShifter";
 
+import logger from "./logger";
+
 export type mSeconds = number;
 //Обертка
 export class GameState {
@@ -38,7 +40,7 @@ export class GameState {
   }
   public questionElapsedTimeMs(): mSeconds {
     if (!this.gameState.startQuestionTs) {
-      console.log("Invalid state:", this.gameState);
+      logger.warn("Invalid state:", this.gameState);
       throw new Error("startQuestionTs not set!");
     }
     return new Date().getTime() - this.gameState.startQuestionTs;
