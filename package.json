@@ -4,9 +4,10 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-          "build": "yarn tsc",
-          "clean": "rm -r dist",
-          "test": "yarn jest"
+    "build": "yarn tsc",
+    "clean": "rm -r dist",
+    "test": "yarn jest",
+    "production": "yarn node src/runWebhookServer.ts"
   },
   "devDependencies": {
     "@types/express": "^4.17.13",
