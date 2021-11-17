@@ -31,3 +31,14 @@ export const BACKEND_PORT = config
   .get("BACKEND_PORT")
   .default(8082)
   .asPortNumber();
+
+export const BOT_PORT = config.get("BOT_PORT").default(8087).asPortNumber();
+
+export const TELEGRAM_TOKEN = config
+  .get("TELEGRAM_TOKEN")
+  .required()
+  .asString();
+
+export const TELEGRAM_WEBHOOK_URL = config
+  .get("TELEGRAM_WEBHOOK_URL")
+  .asUrlString();

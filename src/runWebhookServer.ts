@@ -1,13 +1,18 @@
 //import fastify from "fastify";
 import express from "express";
 import { webhookCallback } from "grammy";
-import createBot, { setupAndRunPoll } from "./GameBot";
+import createBot, { setup } from "./GameBot";
+import * as config from "./config";
 
-const TOKEN =
-  process.env.BOT_TOKEN || "127746074:AAGD5aDG02m2DndUZZMB_J6MyC5FEBoVNQ4";
+import logger from "./logger";
 
-const PORT = process.env.BOT_PORT || 8087;
+const TOKEN = config.TELEGRAM_TOKEN;
+
+const PORT = config.BOT_PORT;
+const TELEGRAM_WEBHOOK_URL = config.TELEGRAM_WEBHOOK_URL;
 const bot = createBot(TOKEN);
+
+type botType = typeof bot;
 
 //const app = fastify({ logger: true });
 
@@ -17,10 +22,22 @@ const app = express();
 app.use(express.json());
 app.use(webhookCallback(bot, "express"));
 
+async function registerWebhook(bot: botType) {
+  if (TELEGRAM_WEBHOOK_URL) {
+    await bot.api.setWebhook(TELEGRAM_WEBHOOK_URL);
+    logger.info(`Setted webhook to:${TELEGRAM_WEBHOOK_URL}`);
+  } else {
+    logger.warn("run bot without webhook");
+  }
+}
+
 async function run() {
   try {
+    await setup(bot);
     console.log("Will Listening on " + PORT);
-    await app.listen(PORT);
+    const listenPromise = app.listen(PORT);
+    await registerWebhook(bot);
+    await listenPromise;
   } catch (err) {
     console.log("Error:", err);
     //app.log.error(err);
