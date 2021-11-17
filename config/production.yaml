@@ -1,0 +1,4 @@
+PG_HOST: 127.0.0.1
+PG_PORT: 5432
+PG_USERNAME: tx_prod
+PG_DATABASE: tx_prod
