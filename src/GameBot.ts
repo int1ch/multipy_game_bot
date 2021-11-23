@@ -36,6 +36,15 @@ export function createBot(token: string) {
           gameType: undefined,
         };
       },
+      /*async getSessionKey(ctx: Context): Promise<string | undefined> {
+        try {
+          if (ctx.chat?.id) {
+            return String(ctx.chat?.id);
+          }
+        } catch (e) {
+          return undefined;
+        }
+      },*/
     })
   );
   bot.use(gameRouter);
@@ -110,12 +119,6 @@ export async function setup(bot: Bot<GameContext>) {
     { command: "game", description: "Запустить игру" },
     { command: "skip", description: "Пропустить вопрос" },
   ]);
-}
-
-export async function setupAndRunPoll(bot: Bot<GameContext>) {
-  setup(bot);
-  logger.info("Starting a bot");
-  bot.start();
 }
 
 export default createBot;
