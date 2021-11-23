@@ -15,7 +15,16 @@ const bot = createBot(TOKEN);
 type botType = typeof bot;
 
 const random = Math.floor(Math.random() * 16 ** 8).toString(16);
-const webhook_url = TELEGRAM_WEBHOOK_URL + "/" + random;
+
+if (!TELEGRAM_WEBHOOK_URL) {
+  throw Error("Cannot run webhook server without public webhook url");
+}
+const webhookURI = new URL(TELEGRAM_WEBHOOK_URL);
+webhookURI.pathname =
+  webhookURI.pathname + (webhookURI.pathname.endsWith("/") ? "" : "/") + random;
+
+const webhookURIstr = webhookURI.toString();
+//+ "/" + random;
 
 //const app = fastify({ logger: true });
 
@@ -28,7 +37,7 @@ app.use(function (req, res, next) {
   next();
 });
 const botExpressCallback = webhookCallback(bot, "express");
-app.use("/" + random, function (request, response) {
+app.use(webhookURI.pathname, function (request, response) {
   botExpressCallback(request, response).catch((error) => {
     logger.error(error, "webhook errror");
   });
@@ -36,8 +45,8 @@ app.use("/" + random, function (request, response) {
 
 async function registerWebhook(bot: botType) {
   if (TELEGRAM_WEBHOOK_URL) {
-    await bot.api.setWebhook(webhook_url);
-    logger.info(`Setted webhook to:${webhook_url}`);
+    await bot.api.setWebhook(webhookURIstr);
+    logger.warn(`Setted webhook to:${webhookURIstr}`);
   } else {
     logger.warn("run bot without webhook");
   }
