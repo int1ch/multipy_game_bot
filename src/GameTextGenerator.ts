@@ -23,14 +23,16 @@ export class GameTextGenerator {
     const response = GameTextGenerator.AskQuestion(q);
     //fix me
     response.text =
-      `Нет, Не угадали, правильный ответ ${oldQ.answer}\n` + response.text;
+      tgEscape(`Нет, Не угадали, правильный ответ ${oldQ.answer}\n`) +
+      response.text;
     return response;
   }
   static FailedThenNextQuestion(oldQ: Question, q: Question): TextResponse {
     const response = GameTextGenerator.AskQuestion(q);
     response.text =
-      `А вот и нет, правильный ответ ${oldQ.answer}\nПереходим к следующему вопросу\n` +
-      response.text;
+      tgEscape(
+        `А вот и нет, правильный ответ ${oldQ.answer}\nПереходим к следующему вопросу\n`
+      ) + response.text;
     return response;
   }
   static ReAskQuestion(q: Question, tryCount: number): TextResponse {
@@ -54,7 +56,7 @@ export class GameTextGenerator {
     let strTaken = "";
     if (takenTimeMs) {
       strTaken = (takenTimeMs / 1000).toFixed(1);
-      strTaken = `\nВаш Результат ${strTaken} секунд`;
+      strTaken = tgEscape(`\nВаш Результат ${strTaken} секунд`);
     }
 
     let recordStr = "";
@@ -79,7 +81,7 @@ export class GameTextGenerator {
 
         if (recordScore >= score && recordMs > takenTimeMs) {
           const modifier = scopeModifiers[recordScore];
-          recordStr = `\n У вас новый ${modifier} рекорд!`;
+          recordStr = tgEscape(`\n У вас новый ${modifier} рекорд!`);
           break; //only one record matter
         }
       } catch (e) {
@@ -94,13 +96,14 @@ export class GameTextGenerator {
     }
     if (failedQuestionsStrArr.length) {
       failedQuestionsStr =
-        "\nПримеры в котрых вы ошиблись\n```\n" +
+        tgEscape("\nПримеры в котрых вы ошиблись:\n") +
+        "```\n" +
         failedQuestionsStrArr.join("\n") +
         "\n```";
     }
 
     let text =
-      "Поздравляю игра закончена\\!" +
+      tgEscape("Поздравляю игра закончена\\!") +
       strTaken +
       recordStr +
       failedQuestionsStr;
@@ -111,4 +114,8 @@ export class GameTextGenerator {
 
     return response;
   }
+}
+
+export function tgEscape(text: string) {
+  return text.replace(/([\!-\/\\[\\\]\`{\|\}\~])/g, "\\$1");
 }
