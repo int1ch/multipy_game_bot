@@ -40,6 +40,7 @@ const botExpressCallback = webhookCallback(bot, "express");
 app.use(webhookURI.pathname, function (request, response) {
   botExpressCallback(request, response).catch((error) => {
     logger.error(error, "webhook errror");
+    response.status(500).send({ error: "server error" });
   });
 });
 

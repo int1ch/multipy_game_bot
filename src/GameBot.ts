@@ -19,7 +19,7 @@ interface SessionData {
   gameState?: any;
 }
 
-Error.stackTraceLimit = 20;
+Error.stackTraceLimit = 10;
 
 type GameContext = Context & SessionFlavor<SessionData>;
 

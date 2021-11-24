@@ -94,13 +94,16 @@ export class GameTextGenerator {
     }
     if (failedQuestionsStrArr.length) {
       failedQuestionsStr =
-        "Примеры в котрых вы ошиблись\n```\n" +
+        "\nПримеры в котрых вы ошиблись\n```\n" +
         failedQuestionsStrArr.join("\n") +
         "\n```";
     }
 
     let text =
-      "Поздравляю игра закончена!" + strTaken + recordStr + failedQuestionsStr;
+      "Поздравляю игра закончена\\!" +
+      strTaken +
+      recordStr +
+      failedQuestionsStr;
     const response: TextResponse = {
       text: text,
       parse_mode: "MarkdownV2",

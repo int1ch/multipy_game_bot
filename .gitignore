@@ -3,5 +3,6 @@ built
 yarn-error.log
 dist
 config/secret.yaml
+knexfile.*
 
 
