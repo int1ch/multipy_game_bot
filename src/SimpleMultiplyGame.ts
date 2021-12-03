@@ -1,10 +1,10 @@
 import { normalizedAB } from "./GamesCommon";
-import { Question } from "./GameStateShifter";
+import { Game, Question } from "./Game/Interfaces";
 
 export function generateSimpleGame(
   questionsCount: number = 9,
   max: number = 9
-) {
+): Game {
   const used: Record<string, boolean> = {};
   const questions = [];
   let iterationConunter = 0;
@@ -28,6 +28,7 @@ export function generateSimpleGame(
   }
   return {
     questions,
+    type: "SIMPLE",
   };
 }
 

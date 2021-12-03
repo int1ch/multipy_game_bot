@@ -3,6 +3,7 @@
 exports[`3 question game ask q2 1`] = `
 Object {
   "failedQuestions": Object {},
+  "gameType": "SIMPLE",
   "questionN": 1,
   "questions": Array [
     Object {
@@ -51,6 +52,7 @@ Object {
 exports[`3 question game ask q3 1`] = `
 Object {
   "failedQuestions": Object {},
+  "gameType": "SIMPLE",
   "questionN": 2,
   "questions": Array [
     Object {
@@ -84,6 +86,7 @@ Object {
 exports[`3 question game finish 1`] = `
 Object {
   "failedQuestions": Object {},
+  "gameType": "SIMPLE",
   "questionN": 2,
   "questions": Array [
     Object {
@@ -117,6 +120,7 @@ Object {
 exports[`3 question game start 1`] = `
 Object {
   "failedQuestions": Object {},
+  "gameType": "SIMPLE",
   "questionN": 0,
   "questions": Array [
     Object {

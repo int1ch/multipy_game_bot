@@ -2,7 +2,7 @@ import {
   Game,
   PlainGameState as InternalGameState,
   Question,
-} from "./GameStateShifter";
+} from "./Game/Interfaces";
 
 import logger from "./logger";
 
@@ -20,6 +20,7 @@ export class GameState {
       try: 0,
       startTs: 0,
       startQuestionTs: 0,
+      gameType: game.type,
     };
     return new GameState(state);
   }
@@ -32,6 +33,9 @@ export class GameState {
     state.try = 0;
   }
 
+  public get type() {
+    return this.gameState.gameType;
+  }
   public get score() {
     return this.gameState.score;
   }
@@ -44,6 +48,9 @@ export class GameState {
       throw new Error("startQuestionTs not set!");
     }
     return new Date().getTime() - this.gameState.startQuestionTs;
+  }
+  public getCurrentQuestionN() {
+    return this.gameState.questionN + 1;
   }
   public getCurrentQuestion() {
     const n = this.gameState.questionN;
@@ -66,6 +73,7 @@ export class GameState {
   public stateNextQuestion() {
     this.gameState.questionN++;
     this.gameState.startQuestionTs = new Date().getTime();
+    this.gameState.try = 0;
   }
   public addCurrentQuestionToFailed(question: Question) {
     this.gameState.failedQuestions[question.text] = question.answer;

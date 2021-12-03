@@ -1,10 +1,11 @@
 import {
   Game,
+  GAME_SPEED,
   PlainGameState as InternalGameState,
   Question,
-} from "./GameStateShifter";
+} from "./Game/Interfaces";
 import { GameTextGenerator, TextResponse } from "./GameTextGenerator";
-import { GameContext } from "./gameRouter";
+import { GameContext } from "./GameRouter";
 import { GameStats } from "./db/GameStats";
 import central from "./CentralStation";
 import { ReplyKeyboardMarkup, ReplyKeyboardRemove } from "@grammyjs/types";
@@ -39,7 +40,12 @@ export class GameProcessor {
   }
   public async startGame(): Promise<GameResponse> {
     this.gameState.startGame();
-    return await this.askQuestion();
+    let response: GameResponse = await this.askQuestion();
+    if (this.gameState.type === GAME_SPEED) {
+      //FIXME
+      response.startEndTimer = 30;
+    }
+    return response;
   }
   public async checkAnswer(text: string): Promise<GameResponse> {
     const question = this.gameState.getCurrentQuestion();
@@ -47,6 +53,9 @@ export class GameProcessor {
     if (question.answer === text) {
       //save question stat here
       //save game stat sovewere in here
+
+      this.gameState.increaseScore();
+
       return await this.moveToNextQuestionAndReturnStats({ scored: true });
     }
     this.gameState.addCurrentQuestionToFailed(question);
@@ -82,10 +91,6 @@ export class GameProcessor {
     const previousQuestionFailed = !!options?.previousQuestionFailed;
     const questionScored = !!options?.scored;
 
-    if (questionScored) {
-      this.gameState.increaseScore();
-    }
-
     if (this.gameState.isLastQuestion()) {
       return await this.finishGame({ previousQuestionFailed });
     }
@@ -95,7 +100,10 @@ export class GameProcessor {
 
     const nextQuestion = this.gameState.getCurrentQuestion();
     const textResponse = previousQuestionFailed
-      ? GameTextGenerator.FailedThenNextQuestion(oldQuestion, nextQuestion)
+      ? GameTextGenerator.FailedThenNextQuestion(
+          nextQuestion,
+          oldQuestion.answer
+        )
       : GameTextGenerator.AskQuestion(nextQuestion);
 
     return textResponse;
@@ -109,13 +117,13 @@ export class GameProcessor {
 
     //const telegamId = this.getTelegramId();
     const statsFetcher = null;
-    const textResponse = await GameTextGenerator.FinishGame(
-      timeTakenMs,
-      score,
-      this.gameState.failedQuestions,
-      this.playerId,
-      this.gameStats
-    );
+    const textResponse = await GameTextGenerator.FinishGame({
+      takenTimeMs: timeTakenMs,
+      score: score,
+      failedQuestions: this.gameState.failedQuestions,
+      playerId: this.playerId,
+      stats: this.gameStats,
+    });
 
     return {
       ...textResponse,
@@ -140,14 +148,18 @@ export class GameProcessor {
   public askQuestion(options?: { previousQuestionFailed: boolean }) {
     const previousQuestionFailed = options?.previousQuestionFailed;
     const question = this.gameState.getCurrentQuestion();
-    const response = previousQuestionFailed
+    const response: GameResponse = previousQuestionFailed
       ? GameTextGenerator.ReAskQuestion(
           question,
           this.gameState.getCurrentQuestionAttempts()
         )
       : GameTextGenerator.AskQuestion(question);
 
+    response.addEndGameTimerText = true;
     return response;
+  }
+  public async setLastMessage() {
+    throw new Error("not ready!");
   }
 }
 interface GameStat {
@@ -166,4 +178,6 @@ export interface GameResponse extends TextResponse {
   questionStat?: QuestionStat;
   gameStat?: GameStat;
   endGame?: boolean;
+  startEndTimer?: number; //seconds
+  addEndGameTimerText?: boolean;
 }

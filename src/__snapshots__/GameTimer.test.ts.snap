@@ -1,0 +1,36 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EndGameTimer Edit Message 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "123",
+      1231,
+      "Осталось 10 секунд.",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
+}
+`;
+
+exports[`EndGameTimer final send Message: all gone 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "123",
+      "Все, Время вышло.",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
+}
+`;

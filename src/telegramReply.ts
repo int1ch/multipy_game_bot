@@ -5,8 +5,9 @@ import {
 } from "@grammyjs/types";
 import { AnyAaaaRecord } from "dns";
 
-import { Context, Keyboard } from "grammy";
+import { Api, Context, Keyboard, RawApi } from "grammy";
 import { GameResponse } from "./GameProcessor";
+import logger from "./logger";
 
 type ReplyMethodParams = Parameters<Context["reply"]>;
 type ReplyReturnType = ReturnType<Context["reply"]>;
@@ -16,28 +17,49 @@ interface ContextWithReply {
   reply: ReplyMethod;
 }
 
-//output
-export async function telegramReply(
-  ctx: ContextWithReply,
+function telegramTextAndOptions(
   response: GameResponse
-) {
-  //const ctx = this.ctx;
+): [string, ReplyMethodParams[1]] {
   const text = response.text;
-
-  const otherOptions: Parameters<typeof ctx["reply"]>[1] = {};
+  const otherOptions: ReplyMethodParams[1] = {};
   if (response.variants) {
     otherOptions.reply_markup = {
       one_time_keyboard: true,
       keyboard: telegramReplyKeyboard(response.variants),
     };
-  }
-  if (response.parse_mode) {
-    otherOptions.parse_mode = response.parse_mode;
+  } else {
+    otherOptions.reply_markup = { remove_keyboard: true };
   }
   if (response.removeKeyboard) {
     otherOptions.reply_markup = { remove_keyboard: true };
   }
-  return await ctx.reply(text, otherOptions);
+  if (response.parse_mode) {
+    otherOptions.parse_mode = response.parse_mode;
+  }
+  return [text, otherOptions];
+}
+
+//output
+export async function telegramSendMessage(
+  api: Api<RawApi>,
+  chatId: number | string,
+  response: GameResponse
+) {
+  const [text, otherOptions] = telegramTextAndOptions(response);
+  const tgResponse = await api.sendMessage(chatId, text, otherOptions);
+  //logger.debug({ text, options: otherOptions, tgResponse }, "tg reply:");
+  return tgResponse;
+}
+export async function telegramReply(
+  ctx: ContextWithReply,
+  response: GameResponse
+) {
+  //const ctx = this.ctx;
+  const [text, otherOptions] = telegramTextAndOptions(response);
+  const tgResponse = await ctx.reply(text, otherOptions);
+  //logger.debug({ text, options: otherOptions, tgResponse }, "tg reply:");
+  return tgResponse;
+  //return await ctx.reply(text, otherOptions);
 }
 
 export function telegramReplyKeyboard(variants: string[]) {

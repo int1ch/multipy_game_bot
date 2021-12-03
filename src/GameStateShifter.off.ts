@@ -1,34 +1,11 @@
+import {
+  QuestionStat,
+  GameStat,
+  PlainGameState,
+  Game,
+} from "./Game/Interfaces";
 import { GameTextGenerator } from "./GameTextGenerator";
 
-export interface Question {
-  text: string;
-  answer: string;
-  variants?: string[];
-  wrongTimeout?: number;
-  score?: number;
-}
-export interface Game {
-  questions: Question[];
-}
-
-export interface PlainGameState {
-  questionN: number;
-  questions: Question[];
-  failedQuestions: Record<string, string>;
-  score: number;
-  try: 0;
-  startTs: number;
-  startQuestionTs: number;
-}
-
-export interface QuestionStat {
-  text: string;
-  timeMs: number;
-}
-export interface GameStat {
-  timeMs: number;
-  score: number;
-}
 export interface ShifterResponse {
   text: string;
   variants?: string[];
@@ -38,9 +15,6 @@ export interface ShifterResponse {
     question?: QuestionStat;
     game?: GameStat;
   };
-}
-export interface Game {
-  questions: Question[];
 }
 
 const GTG = GameTextGenerator;
@@ -64,6 +38,7 @@ export class GameStateShifter {
       try: 0,
       startTs: new Date().getTime(),
       startQuestionTs: 0,
+      gameType: game.type,
     };
     return new GameStateShifter(state);
   }

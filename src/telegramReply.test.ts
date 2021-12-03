@@ -12,7 +12,10 @@ test("telegram  text replay", () => {
   const [context, replyMock] = getMockedContext();
   telegramReply(context, { text: "HelloWorld" });
   expect(replyMock).toBeCalledTimes(1);
-  expect(replyMock).toBeCalledWith("HelloWorld", {});
+  //expect AUTOMATIC remove of keyboard
+  expect(replyMock).toBeCalledWith("HelloWorld", {
+    reply_markup: { remove_keyboard: true },
+  });
 });
 test("telegram  text replay variants", () => {
   const [context, replyMock] = getMockedContext();
@@ -42,5 +45,6 @@ test("telegram  text MarkdownV2", () => {
   expect(replyMock).toBeCalledTimes(1);
   expect(replyMock).toBeCalledWith("HelloWorld", {
     parse_mode: "MarkdownV2",
+    reply_markup: { remove_keyboard: true },
   });
 });

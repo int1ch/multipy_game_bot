@@ -166,7 +166,7 @@ export class GameStats {
         [gameType, playerId]
       )
       .first();
-    if (result) {
+    if (!result) {
       throw new NoRecordErrorYet("Record not set");
     }
     return [result.minTime, result.score];

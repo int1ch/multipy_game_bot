@@ -1,6 +1,8 @@
 import createBot, { setup } from "./GameBot";
-import logger from "./logger";
+import logger, { switchToConsole } from "./logger";
 import * as config from "./config";
+
+switchToConsole();
 
 const token = config.TELEGRAM_TOKEN;
 

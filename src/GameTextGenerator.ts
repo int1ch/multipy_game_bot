@@ -1,3 +1,4 @@
+import { pathToFileURL } from "url";
 import { GameStats } from "./db/GameStats";
 import logger from "./logger";
 
@@ -11,6 +12,13 @@ interface Question {
   answer: string;
   variants?: string[];
 }
+interface FinishGameParams {
+  takenTimeMs: number;
+  score: number;
+  failedQuestions: Record<string, string>;
+  playerId: number;
+  stats: GameStats;
+}
 
 export class GameTextGenerator {
   static AskQuestion(q: Question): TextResponse {
@@ -19,44 +27,50 @@ export class GameTextGenerator {
       variants: q.variants,
     };
   }
-  static FailedThenFinishGame(oldQ: Question, q: Question): TextResponse {
-    const response = GameTextGenerator.AskQuestion(q);
-    //fix me
-    response.text =
-      tgEscape(`Нет, Не угадали, правильный ответ ${oldQ.answer}\n`) +
-      response.text;
-    return response;
-  }
-  static FailedThenNextQuestion(oldQ: Question, q: Question): TextResponse {
-    const response = GameTextGenerator.AskQuestion(q);
-    response.text =
-      tgEscape(
-        `А вот и нет, правильный ответ ${oldQ.answer}\nПереходим к следующему вопросу\n`
-      ) + response.text;
-    return response;
-  }
   static ReAskQuestion(q: Question, tryCount: number): TextResponse {
     const response = GameTextGenerator.AskQuestion(q);
     response.text = `Нет, попоробуйте еще раз\n` + response.text;
     return response;
   }
+  static rightAnswerInjection(oldAnswer?: string) {
+    if (!oldAnswer) return "";
+    return `, правильный ответ ${oldAnswer}`;
+  }
+  static FailedThenNextQuestion(q: Question, oldAnswer?: string): TextResponse {
+    const response = GameTextGenerator.AskQuestion(q);
+    let rightAnswer = GameTextGenerator.rightAnswerInjection(oldAnswer);
+    response.text =
+      `А вот и нет${rightAnswer}\nПереходим к следующему вопросу\n` +
+      response.text;
+    return response;
+  }
+
   //вот тут ломается вобще все потому что для других методов не требуется async
   //а тут статистика подгружается через него
   //варианты:
   //загрузать статистику снаружи
   //не париться
-  static async FinishGame(
-    takenTimeMs: number,
-    score: number,
-    failedQuestions: Record<string, string>,
-    playerId: number,
-    stats: GameStats
+  static async FailedThenFinishGame(
+    params: FinishGameParams
   ): Promise<TextResponse> {
-    let taken = 0;
+    const response = await GameTextGenerator.FinishGame(params);
+
+    //add? preious.answer
+    let rightAnswer = GameTextGenerator.rightAnswerInjection();
+    response.text =
+      tgEscape(`Нет, Не угадали${rightAnswer}, закругляемся\n`) + response.text;
+    return response;
+  }
+  static async FinishGame(params: FinishGameParams): Promise<TextResponse> {
+    const takenTimeMs = params.takenTimeMs;
+    const stats = params.stats;
+    const score = params.score;
+    const playerId = params.playerId;
+    const failedQuestions = params.failedQuestions;
     let strTaken = "";
     if (takenTimeMs) {
       strTaken = (takenTimeMs / 1000).toFixed(1);
-      strTaken = tgEscape(`\nВаш Результат ${strTaken} секунд`);
+      strTaken = `\nВаш Результат ${strTaken} секунд`;
     }
 
     let recordStr = "";
@@ -81,7 +95,7 @@ export class GameTextGenerator {
 
         if (recordScore >= score && recordMs > takenTimeMs) {
           const modifier = scopeModifiers[recordScore];
-          recordStr = tgEscape(`\n У вас новый ${modifier} рекорд!`);
+          recordStr = `\n У вас новый ${modifier} рекорд!`;
           break; //only one record matter
         }
       } catch (e) {
@@ -89,33 +103,86 @@ export class GameTextGenerator {
       }
     }
 
-    let failedQuestionsStr = "";
+    let text =
+      tgEscape("Поздравляю игра закончена!") +
+      tgEscape(strTaken) +
+      tgEscape(recordStr) +
+      GameTextGenerator.failedQuestionsMarkdownStr(failedQuestions);
+    const response: TextResponse = {
+      text: text,
+      parse_mode: "MarkdownV2", // tgEscape required
+    };
+
+    return response;
+  }
+
+  static failedQuestionsMarkdownStr(failedQuestions: Record<string, string>) {
     const failedQuestionsStrArr: string[] = [];
     for (const [q, answer] of Object.entries(failedQuestions)) {
-      failedQuestionsStrArr.push(q + " = " + answer);
+      //failed question must have = (3 * 2 = )
+      failedQuestionsStrArr.push(q + "" + answer);
     }
-    if (failedQuestionsStrArr.length) {
-      failedQuestionsStr =
-        tgEscape("\nПримеры в котрых вы ошиблись:\n") +
-        "```\n" +
-        failedQuestionsStrArr.join("\n") +
-        "\n```";
+    if (!failedQuestionsStrArr.length) {
+      return "";
     }
+    const failedQuestionsEscapedStr =
+      tgEscape("\nПримеры в которых вы ошиблись:\n") +
+      "```\n" +
+      failedQuestionsStrArr.join("\n") +
+      "\n```";
 
+    return failedQuestionsEscapedStr;
+  }
+
+  static async FinishSpeedGame(params: FinishGameParams) {
+    //const takenTimeMs = params.takenTimeMs;
+    const stats = params.stats;
+    const score = params.score;
+    const playerId = params.playerId;
+    const failedQuestions = params.failedQuestions;
+    const endGameStr =
+      score > 4 ? "Поздравляю игра закончена!" : "Игра закончена.";
+
+    let strScore = "\nВы набрали " + l10nScore(score);
+    let recordStr = "";
     let text =
-      tgEscape("Поздравляю игра закончена\\!") +
-      strTaken +
-      recordStr +
-      failedQuestionsStr;
+      tgEscape(endGameStr) +
+      tgEscape(strScore) +
+      tgEscape(recordStr) +
+      GameTextGenerator.failedQuestionsMarkdownStr(failedQuestions);
     const response: TextResponse = {
       text: text,
       parse_mode: "MarkdownV2",
     };
-
     return response;
   }
 }
 
 export function tgEscape(text: string) {
   return text.replace(/([\!-\/\\[\\\]\`{\|\}\~])/g, "\\$1");
+}
+
+function l10nNumeric(
+  value: number = 0,
+  str5: string,
+  str2: string = "",
+  str1: string = ""
+): string {
+  const rest = value % 10;
+  if (rest === 1) {
+    return str1 || str5;
+  }
+  if (rest > 1 && rest < 5) {
+    return str2 || str5;
+  }
+  return str5;
+}
+
+export function l10nScore(value: number) {
+  const score = l10nNumeric(value, "очков", "очка", "очко");
+  return value + " " + score;
+}
+export function l10nSeconds(value: number) {
+  const score = l10nNumeric(value, "секунд", "секунды", "секунда");
+  return value + " " + score;
 }

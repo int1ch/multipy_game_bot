@@ -11,7 +11,8 @@ import {
 import logger from "./logger";
 
 import centralStation from "./CentralStation";
-import { router as gameRouter, startGame } from "./gameRouter";
+import { GameRouterGenerator } from "./GameRouter";
+import central from "./CentralStation";
 
 interface SessionData {
   gameType?: string;
@@ -36,18 +37,11 @@ export function createBot(token: string) {
           gameType: undefined,
         };
       },
-      /*async getSessionKey(ctx: Context): Promise<string | undefined> {
-        try {
-          if (ctx.chat?.id) {
-            return String(ctx.chat?.id);
-          }
-        } catch (e) {
-          return undefined;
-        }
-      },*/
     })
   );
-  bot.use(gameRouter);
+  //FIXME!!!
+  const routerGen = new GameRouterGenerator(bot.api, { central });
+  bot.use(routerGen);
 
   bot.command("start", (ctx) => {
     ctx.reply(
@@ -55,20 +49,22 @@ export function createBot(token: string) {
     );
   });
   bot.command("help", (ctx) => {
-    logger.log("GET HELP");
+    logger.debug("GET HELP");
     ctx.reply("/game для старта испытания!, /top для вывода рейтинга");
   });
   bot.command("a", (ctx) => {
     ctx.reply("Prepare help");
   });
 
+  /*
   bot.command("game", async (ctx) => {
     try {
-      await startGame(ctx);
+      await routerGen.startGame(ctx);
     } catch (e) {
       logger.error({ error: e }, "ERROR in /game command");
     }
   });
+  */
 
   bot.command("top", async (ctx) => {
     //и что тут выводить?

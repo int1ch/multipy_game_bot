@@ -1,18 +1,18 @@
-import exp from "constants";
 import central from "./CentralStation";
 import { GameProcessor } from "./GameProcessor";
 import { GameState } from "./GameState";
-import { PlainGameState } from "./GameStateShifter";
+import { Game, PlainGameState } from "./Game/Interfaces";
 afterAll(() => {
   central.close();
 });
 
-const threeQuestionGame = {
+const threeQuestionGame: Game = {
   questions: [
     { text: "a", answer: "a", variants: ["a", "b"] },
     { text: "b", answer: "b", variants: ["a", "b"] },
     { text: "c", answer: "c" },
   ],
+  type: "SIMPLE",
 };
 
 const playerId = 1;

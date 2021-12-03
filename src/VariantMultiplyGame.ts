@@ -1,5 +1,5 @@
 import { normalizedAB } from "./GamesCommon";
-import { Question } from "./GameStateShifter";
+import { Game, GAME_SPEED, Question } from "./Game/Interfaces";
 
 const samples = [
   {
@@ -96,7 +96,7 @@ const samples = [
   },
 ];
 
-export function generateVariantGame(questionsCount: number = 5) {
+export function generateVariantGame(questionsCount: number = 5): Game {
   const used: Record<string, boolean> = {};
   const questions = [];
   let iterationConunter = 0;
@@ -141,5 +141,12 @@ export function generateVariantGame(questionsCount: number = 5) {
   }
   return {
     questions,
+    type: "SIMPLE",
   };
+}
+
+export function generateSpeedGame(questionsCount?: number | undefined) {
+  const game = generateVariantGame(questionsCount);
+  game.type = GAME_SPEED;
+  return game;
 }
